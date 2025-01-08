@@ -1,0 +1,29 @@
+[package]
+name = "herring"
+version = "0.1.0"
+edition = "2021"
+description = "Lexer generator"
+repository = "https://github.com/0x2a-42/herring"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["lexer", "generator"]
+categories = ["parsing"]
+
+[dependencies]
+herring-derive = { version = "0.1", path = "./herring-derive" }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "logos_benchmark"
+harness = false
+
+[workspace]
+members = ["herring-automata", "herring-derive"]
+
+[profile.dev.build-override]
+opt-level = 3
+
+[profile.release.build-override]
+opt-level = 3

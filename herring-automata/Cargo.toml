@@ -1,0 +1,12 @@
+[package]
+name = "herring-automata"
+version = "0.1.0"
+edition = "2021"
+description = "Automata construction for Herring"
+repository = "https://github.com/0x2a-42/herring"
+license = "MIT OR Apache-2.0"
+keywords = ["herring", "automata", "automaton", "dfa", "nfa"]
+categories = ["text-processing"]
+
+[dependencies]
+regex-syntax = { version = "0.8.5", features = ["unicode-case"] }
