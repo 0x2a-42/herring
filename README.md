@@ -2,7 +2,7 @@
 [![Crates.io](https://img.shields.io/crates/v/herring)](https://crates.io/crates/herring)
 [![MIT/Apache 2.0](https://img.shields.io/crates/l/herring)](./LICENSE-MIT)
 [![Crates.io](https://img.shields.io/crates/d/herring)](https://crates.io/crates/herring)
-<!--[![Rust](https://img.shields.io/github/actions/workflow/status/0x2a-42/herring/rust.yml)](https://github.com/0x2a-42/herring/actions)-->
+[![Rust](https://img.shields.io/github/actions/workflow/status/0x2a-42/herring/rust.yml)](https://github.com/0x2a-42/herring/actions)
 
 [Herring](https://en.wikipedia.org/wiki/Herring) (**H**ighly **E**fficient **R**ust **R**egex-based lexer **I**mplementatio**N** **G**enerator) is a lexer generator for Rust implementing a subset of the [Logos](https://github.com/maciejhirsz/logos) API.
 
