@@ -60,8 +60,8 @@ impl<const IS_DETERMINISTIC: bool> Automaton<IS_DETERMINISTIC> {
             )?;
             for t in node.transitions.iter() {
                 let label = format!("{:?}", t.when)
-                    .replace("\"", "\\\"")
-                    .replace("\\", "\\\\");
+                    .replace("\\", "\\\\")
+                    .replace("\"", "\\\"");
                 writeln!(f, "{i} -> {} [label=\"{label}\"];", t.to.0)?;
             }
         }
@@ -104,7 +104,8 @@ impl<const IS_DETERMINISTIC: bool> Automaton<IS_DETERMINISTIC> {
                 writeln!(
                     f,
                     "{}_{}[{output:?}]@{{shape: rect}}",
-                    output.value.0, output.value.1
+                    output.value.0.replace(' ', "_"),
+                    output.value.1
                 )?;
                 writeln!(f, "{} .-> {}_{}", node.0, output.value.0, output.value.1)?;
             }
