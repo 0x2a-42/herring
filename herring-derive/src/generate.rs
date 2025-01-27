@@ -421,8 +421,8 @@ pub(crate) fn generate_impl(tokens: TokenStream) -> syn::Result<TokenStream> {
                             lexer.offset = offset;
                         }
                         LastAccept::SkipCallback(callback, offset) => {
-                            callback(lexer);
                             lexer.offset = offset;
+                            callback(lexer);
                         }
                     }
                 }
