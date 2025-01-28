@@ -1,9 +1,11 @@
 use crate::parse::*;
-use herring_automata::{Dfa, Nfa, Pattern, State, StateRef, Transition};
+use herring_automata::{Dfa, Nfa, Output, Pattern, State, StateRef, Transition};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::collections::{BTreeMap, HashMap};
 use syn::{Error, Expr, Ident};
+
+pub(crate) const SKIP_NAME: &str = "skipped regex";
 
 fn generate_dfa(tokens: Vec<herring_automata::Token>) -> syn::Result<Dfa> {
     let nfa = Nfa::new_tokenizer(tokens);
@@ -197,101 +199,126 @@ fn generate_transitions<'a>(
     }
 }
 
+fn generate_callback_def(
+    enum_name: &Ident,
+    output: &Option<Output>,
+    callbacks: &HashMap<(String, usize), Expr>,
+    is_skip: bool,
+) -> TokenStream {
+    if let Some(output) = output {
+        if let Some(callback) = callbacks.get(output.value()) {
+            return if is_skip {
+                quote! {
+                    let callback: fn(&mut herring::Lexer<'source, #enum_name>) = #callback;
+                }
+            } else {
+                quote! {
+                    let callback: fn(
+                        &mut herring::Lexer<'source, #enum_name>
+                    ) -> Result<#enum_name, <Self as Herring<'source>>::Error> = #callback;
+                }
+            };
+        }
+    }
+    quote! {}
+}
+
+fn generate_last_accept(
+    callback_def: &TokenStream,
+    output: &Option<Output>,
+    enum_name: &Ident,
+    is_skip: bool,
+) -> TokenStream {
+    if let Some(output) = output {
+        if callback_def.is_empty() {
+            if is_skip {
+                quote! { last_accept = LastAccept::Skip(lexer.offset); }
+            } else {
+                let enumerator = ident!(output.value().0);
+                quote! { last_accept = LastAccept::Token(#enum_name::#enumerator, lexer.offset); }
+            }
+        } else if is_skip {
+            quote! { last_accept = LastAccept::SkipCallback(callback, lexer.offset); }
+        } else {
+            quote! { last_accept = LastAccept::TokenCallback(callback, lexer.offset); }
+        }
+    } else {
+        quote! {}
+    }
+}
+
+fn generate_final_state_branch(
+    enum_name: &Ident,
+    output: &Output,
+    callback_def: TokenStream,
+    is_skip: bool,
+    state_ident: Ident,
+    log_state: TokenStream,
+) -> TokenStream {
+    let jump = if callback_def.is_empty() {
+        if is_skip {
+            quote! { continue 'skip; }
+        } else {
+            let enumerator = ident!(output.value().0);
+            quote! { return Some(Ok(#enum_name::#enumerator)); }
+        }
+    } else if is_skip {
+        quote! {
+            callback(lexer);
+            continue 'skip;
+        }
+    } else {
+        quote! { return Some(callback(lexer)); }
+    };
+    quote! {
+        State::#state_ident => {
+            #log_state
+            #callback_def
+            #jump
+        }
+    }
+}
+
 fn generate_state_branches<'a>(
     dfa: &'a Dfa,
     enum_name: &Ident,
     callbacks: HashMap<(String, usize), Expr>,
     luts: &mut BTreeMap<&'a Pattern, usize>,
 ) -> syn::Result<Vec<TokenStream>> {
-    const SKIP_NAME: &str = "skipped regex";
     let mut branches = vec![];
     for (num, state) in dfa.states().iter().enumerate() {
         let state_ref = StateRef::new(num);
         let state_ident = ident!("S{num}");
-        let mut callback_def = quote! {};
         let log_state = crate::debug::log_state(num);
-        let mut is_skip = false;
-        if let Some(Some(output)) = dfa.accepts().get(&state_ref) {
-            is_skip = output.value().0 == SKIP_NAME;
-            if let Some(callback) = callbacks.get(output.value()) {
-                callback_def = if is_skip {
-                    quote! {
-                        let callback: fn(&mut herring::Lexer<'source, #enum_name>) = #callback;
-                    }
-                } else {
-                    quote! {
-                        let callback: fn(
-                            &mut herring::Lexer<'source, #enum_name>
-                        ) -> Result<#enum_name, <Self as Herring<'source>>::Error> = #callback;
-                    }
-                };
-            }
-        }
-        if !state.transitions().is_empty() {
-            let last_accept = if let Some(Some(output)) = dfa.accepts().get(&state_ref) {
-                if callback_def.is_empty() {
-                    if is_skip {
-                        quote! { last_accept = LastAccept::Skip(lexer.offset); }
-                    } else {
-                        let enumerator = ident!(output.value().0);
-                        quote! { last_accept = LastAccept::Token(#enum_name::#enumerator, lexer.offset); }
-                    }
-                } else if is_skip {
-                    quote! { last_accept = LastAccept::SkipCallback(callback, lexer.offset); }
-                } else {
-                    quote! { last_accept = LastAccept::TokenCallback(callback, lexer.offset); }
-                }
-            } else {
-                quote! {}
-            };
+        let output = dfa.accepts().get(&state_ref).unwrap_or(&None);
+        let is_skip = output
+            .as_ref()
+            .is_some_and(|output| output.value().0 == SKIP_NAME);
+        let callback_def = generate_callback_def(enum_name, output, &callbacks, is_skip);
+
+        branches.push(if !state.transitions().is_empty() {
+            let last_accept = generate_last_accept(&callback_def, output, enum_name, is_skip);
             let transitions = generate_transitions(dfa, state_ref, state, luts);
-            branches.push(quote! {
+            quote! {
                 State::#state_ident => {
                     #log_state
                     #callback_def
                     #last_accept
                     #transitions
                 }
-            });
-        } else if let Some(Some(output)) = dfa.accepts().get(&state_ref) {
-            branches.push(if callback_def.is_empty() {
-                if is_skip {
-                    quote! {
-                        State::#state_ident => {
-                            #log_state
-                            continue 'skip;
-                        }
-                    }
-                } else {
-                    let enumerator = ident!(output.value().0);
-                    quote! {
-                        State::#state_ident => {
-                            #log_state
-                            return Some(Ok(#enum_name::#enumerator));
-                        }
-                    }
-                }
-            } else if is_skip {
-                quote! {
-                    State::#state_ident => {
-                        #log_state
-                        #callback_def
-                        callback(lexer);
-                        continue 'skip;
-                    }
-                }
-            } else {
-                quote! {
-                    State::#state_ident => {
-                        #log_state
-                        #callback_def
-                        return Some(callback(lexer));
-                    }
-                }
-            });
+            }
+        } else if let Some(output) = output {
+            generate_final_state_branch(
+                enum_name,
+                output,
+                callback_def,
+                is_skip,
+                state_ident,
+                log_state,
+            )
         } else {
             panic!("non-accepting state has no outgoing transitions, please report this bug")
-        }
+        });
     }
     Ok(branches)
 }

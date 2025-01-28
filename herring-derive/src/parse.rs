@@ -8,6 +8,8 @@ use syn::{
     LitInt, LitStr, Token, Type, Variant,
 };
 
+use crate::generate::SKIP_NAME;
+
 fn consume_comma(input: ParseStream) -> bool {
     input
         .parse::<Option<Token![,]>>()
@@ -194,7 +196,6 @@ fn parse_enum_attrs(
     callbacks: &mut HashMap<(String, usize), Expr>,
     binary: &mut bool,
 ) -> syn::Result<EnumAttrs> {
-    const SKIP_NAME: &str = "skipped regex";
     let mut extras_ty = Type::Verbatim(quote! {()});
     let mut error_ty = Type::Verbatim(quote! {()});
     let mut source_ty = quote! {};
