@@ -89,6 +89,20 @@ fn generate_pattern<'a>(
     }
 }
 
+fn generate_eof_jump(dfa: &Dfa, state_ref: StateRef) -> TokenStream {
+    if dfa.start() == state_ref {
+        quote! {
+           lexer.offset -= 1;
+           return None;
+        }
+    } else {
+        quote! {
+           lexer.offset -= 1;
+           break;
+        }
+    }
+}
+
 fn generate_pattern_transitions<'a>(
     dfa: &'a Dfa,
     state_ref: StateRef,
@@ -106,21 +120,8 @@ fn generate_pattern_transitions<'a>(
            }
         });
     }
-    transitions.push(if dfa.start() == state_ref {
-        quote! {
-           None => {
-               lexer.offset -= 1;
-               return None;
-           }
-        }
-    } else {
-        quote! {
-           None => {
-               lexer.offset -= 1;
-               break;
-           }
-        }
-    });
+    let eof_jump = generate_eof_jump(dfa, state_ref);
+    transitions.push(quote! { None => { #eof_jump } });
     quote! {
         match lexer.next_byte() {
             #(#transitions)*
@@ -141,17 +142,7 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
         }
         entries.push(quote! { __ });
     }
-    let when_eof = if dfa.start() == state_ref {
-        quote! {
-            lexer.offset -= 1;
-            return None;
-        }
-    } else {
-        quote! {
-            lexer.offset -= 1;
-            break;
-        }
-    };
+    let eof_jump = generate_eof_jump(dfa, state_ref);
     let mut targets = vec![];
     let mut states = vec![];
     for t in state.transitions().iter() {
@@ -170,7 +161,7 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
                 #(#entries),*
             ]
         };
-        let Some(byte) = lexer.next_byte() else { #when_eof };
+        let Some(byte) = lexer.next_byte() else { #eof_jump };
         match LUT[byte as usize] {
             #(Jumps::#targets => {
                 state = State::#states;
