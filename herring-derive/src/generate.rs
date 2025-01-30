@@ -103,6 +103,18 @@ fn generate_eof_jump(dfa: &Dfa, state_ref: StateRef) -> TokenStream {
     }
 }
 
+fn generate_state_jump(state_ref: StateRef, transition: &Transition) -> TokenStream {
+    if transition.to() == state_ref {
+        quote! { continue; }
+    } else {
+        let next_state = ident!("S{}", transition.to().value());
+        quote! {
+            state = State::#next_state;
+            continue 'fsm;
+        }
+    }
+}
+
 fn generate_pattern_transitions<'a>(
     dfa: &'a Dfa,
     state_ref: StateRef,
@@ -111,16 +123,8 @@ fn generate_pattern_transitions<'a>(
 ) -> TokenStream {
     let mut transitions = vec![];
     for transition in state.transitions().iter() {
-        let next_state = ident!("S{}", transition.to().value());
         let condition = generate_pattern(transition, luts);
-        let jump = if transition.to() == state_ref {
-            quote! { continue; }
-        } else {
-            quote! {
-                state = State::#next_state;
-                continue 'fsm;
-            }
-        };
+        let jump = generate_state_jump(state_ref, transition);
         transitions.push(quote! {
            #condition => {
                #jump
@@ -152,17 +156,9 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
     let eof_jump = generate_eof_jump(dfa, state_ref);
     let mut targets = vec![];
     let mut jumps = vec![];
-    for t in state.transitions().iter() {
-        targets.push(ident!("J{}", t.to().value()));
-        jumps.push(if t.to() == state_ref {
-            quote! { continue; }
-        } else {
-            let state_ident = ident!("S{}", t.to().value());
-            quote! {
-                state = State::#state_ident;
-                continue 'fsm;
-            }
-        });
+    for transition in state.transitions().iter() {
+        targets.push(ident!("J{}", transition.to().value()));
+        jumps.push(generate_state_jump(state_ref, transition));
     }
     quote! {
         #[derive(Clone, Copy)]
