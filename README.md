@@ -48,9 +48,9 @@ Currently in most cases Logos is faster than Herring with DFA jump threading.
 
 | Benchmark | Without DFA Jump Threading | With DFA Jump Threading | Logos |
 | --- | --- | --- | --- |
-| `iterate/identifiers` | 1.9877 µs (373.75 MiB/s) | **878.93 ns (845.24 MiB/s)** | 951.53 ns (780.75 MiB/s) |
-| `iterate/keywords_operators_and_punctators` | 6.1906 µs (328.28 MiB/s) | 2.8433 µs (714.76 MiB/s) | **2.6915 µs (755.08 MiB/s)** |
-| `iterate/strings` | 2.0411 µs (406.97 MiB/s) | 1.0142 µs (818.99 MiB/s) | **717.31 ns (1.1309 GiB/s)** |
+| `iterate/identifiers` | 1.2541 µs (592.40 MiB/s) | **824.49 ns (901.06 MiB/s)** | 951.53 ns (780.75 MiB/s) |
+| `iterate/keywords_operators_and_punctators` | 6.2495 µs (325.19 MiB/s) | 2.9077 µs (698.94 MiB/s) | **2.6915 µs (755.08 MiB/s)** |
+| `iterate/strings` | 1.0770 µs (771.29 MiB/s) | 830.49 ns (1000.2 MiB/s) | **717.31 ns (1.1309 GiB/s)** |
 
 ### Compile Time
 Using complex unicode ranges or finite repetitions may result in large NFAs, for which the transformation to a minimized DFA may take a noticeable amount of time.

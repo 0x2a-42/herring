@@ -98,7 +98,7 @@ fn generate_eof_jump(dfa: &Dfa, state_ref: StateRef) -> TokenStream {
     } else {
         quote! {
            lexer.offset -= 1;
-           break;
+           break 'fsm;
         }
     }
 }
@@ -113,10 +113,17 @@ fn generate_pattern_transitions<'a>(
     for transition in state.transitions().iter() {
         let next_state = ident!("S{}", transition.to().value());
         let condition = generate_pattern(transition, luts);
+        let jump = if transition.to() == state_ref {
+            quote! { continue; }
+        } else {
+            quote! {
+                state = State::#next_state;
+                continue 'fsm;
+            }
+        };
         transitions.push(quote! {
            #condition => {
-               state = State::#next_state;
-               continue;
+               #jump
            }
         });
     }
@@ -125,7 +132,7 @@ fn generate_pattern_transitions<'a>(
     quote! {
         match lexer.next_byte() {
             #(#transitions)*
-            _ => break,
+            _ => break 'fsm,
         }
     }
 }
@@ -144,10 +151,18 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
     }
     let eof_jump = generate_eof_jump(dfa, state_ref);
     let mut targets = vec![];
-    let mut states = vec![];
+    let mut jumps = vec![];
     for t in state.transitions().iter() {
         targets.push(ident!("J{}", t.to().value()));
-        states.push(ident!("S{}", t.to().value()));
+        jumps.push(if t.to() == state_ref {
+            quote! { continue; }
+        } else {
+            let state_ident = ident!("S{}", t.to().value());
+            quote! {
+                state = State::#state_ident;
+                continue 'fsm;
+            }
+        });
     }
     quote! {
         #[derive(Clone, Copy)]
@@ -161,14 +176,15 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
                 #(#entries),*
             ]
         };
-        let Some(byte) = lexer.next_byte() else { #eof_jump };
-        match LUT[byte as usize] {
-            #(Jumps::#targets => {
-                state = State::#states;
-                continue;
-            })*
-            Jumps::__ => break,
+        if let Some(byte) = lexer.next_byte() {
+            match LUT[byte as usize] {
+                #(Jumps::#targets => {
+                    #jumps
+                })*
+                Jumps::__ => break 'fsm,
+            }
         }
+        #eof_jump
     }
 }
 
@@ -263,8 +279,8 @@ fn generate_final_state_branch(
     };
     quote! {
         State::#state_ident => {
-            #log_state
             #callback_def
+            #log_state
             #jump
         }
     }
@@ -290,12 +306,19 @@ fn generate_state_branches<'a>(
         branches.push(if !state.transitions().is_empty() {
             let last_accept = generate_last_accept(&callback_def, output, enum_name, is_skip);
             let transitions = generate_transitions(dfa, state_ref, state, luts);
+            let loop_edge = if state.transitions().iter().any(|t| t.to() == state_ref) {
+                quote! { loop }
+            } else {
+                quote! {}
+            };
             quote! {
                 State::#state_ident => {
-                    #log_state
                     #callback_def
-                    #last_accept
-                    #transitions
+                    #loop_edge {
+                        #log_state
+                        #last_accept
+                        #transitions
+                    }
                 }
             }
         } else if let Some(output) = output {
@@ -414,7 +437,7 @@ pub(crate) fn generate_impl(tokens: TokenStream) -> syn::Result<TokenStream> {
                         ) -> Result<#enum_name, <Self as Herring<'source>>::Error>,
                         fn(&mut herring::Lexer<'source, #enum_name>)
                     > = LastAccept::None;
-                    loop {
+                    'fsm: loop {
                         match state {
                             #(#branches)*
                         }
