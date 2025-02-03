@@ -70,25 +70,25 @@ impl Dfa {
 
         let mut automaton = Dfa::new();
         let mut new_states = HashMap::new();
-        for partition in p {
+        for partition in p.iter() {
             let state = if partition.contains(&self.start) {
                 automaton.start
             } else {
                 automaton.add()
             };
-            new_states.insert(partition, state);
-        }
-        for (partition, state) in new_states.iter() {
             for s in partition {
+                new_states.insert(s, state);
+            }
+        }
+        for partition in p.iter() {
+            for s in partition {
+                let state = new_states[&s];
                 if let Some(tok) = self.accepts.get(s) {
-                    let _ = automaton.set_accept_output(*state, tok.clone());
+                    let _ = automaton.set_accept_output(state, tok.clone());
                 }
                 for t in self.states[s.0].transitions.iter() {
-                    let to = new_states
-                        .iter()
-                        .find_map(|(p, s)| p.contains(&t.to).then_some(*s))
-                        .unwrap();
-                    automaton.add_transition(*state, t.when.clone(), to);
+                    let to = new_states[&t.to];
+                    automaton.add_transition(state, t.when.clone(), to);
                 }
             }
         }
