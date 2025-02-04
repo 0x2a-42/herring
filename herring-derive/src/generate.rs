@@ -92,13 +92,13 @@ fn generate_pattern<'a>(
 fn generate_eof_jump(dfa: &Dfa, state_ref: StateRef) -> TokenStream {
     if dfa.start() == state_ref {
         quote! {
-           lexer.offset -= 1;
-           return None;
+            lexer.offset -= 1;
+            return None;
         }
     } else {
         quote! {
-           lexer.offset -= 1;
-           break 'fsm;
+            lexer.offset -= 1;
+            break 'fsm;
         }
     }
 }
@@ -136,7 +136,13 @@ fn generate_pattern_transitions<'a>(
     quote! {
         match lexer.next_byte() {
             #(#transitions)*
-            _ => break 'fsm,
+            _ => {
+                let offset = lexer.offset - 1;
+                if offset != lexer.start {
+                    lexer.offset = offset;
+                }
+                break 'fsm;
+            }
         }
     }
 }
@@ -177,7 +183,13 @@ fn generate_lut_transitions(dfa: &Dfa, state_ref: StateRef, state: &State) -> To
                 #(Jumps::#targets => {
                     #jumps
                 })*
-                Jumps::__ => break 'fsm,
+                Jumps::__ => {
+                    let offset = lexer.offset - 1;
+                    if offset != lexer.start {
+                        lexer.offset = offset;
+                    }
+                    break 'fsm;
+                }
             }
         }
         #eof_jump
