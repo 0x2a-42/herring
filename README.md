@@ -134,7 +134,7 @@ fn main() {
 You can inspect the generated code by running [`cargo expand`](https://github.com/dtolnay/cargo-expand).
 
 You can generate [Graphviz](https://graphviz.org/) or [Mermaid](https://mermaid.js.org/) graphs by setting the environment variable `HERRING_DEBUG` to either `graphviz` or `mermaid` during the execution of the procedural macro.
-This generates a file for the NFA (`nfa.dot` or `nfa.mmd`), the subset construction DFA (`dfa.dot` or `dfa.mmd`), and the minimized DFA (`min.dot` or `min.mmd`) in the specified format.
+This generates a file for the NFA (`EnumName_nfa.{dot,mmd}`), the subset construction DFA (`EnumName_dfa.{dot,mmd}`), and the minimized DFA (`EnumName_min.{dot,mmd}`) in the specified format.
 Graphviz is useful when debugging locally with tools like [`xdot`](https://github.com/jrfonseca/xdot.py).
 Mermaid is useful for directly embedding graphs in Github issues.
 

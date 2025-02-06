@@ -7,18 +7,18 @@ use syn::{Error, Expr, Ident};
 
 pub(crate) const SKIP_NAME: &str = "skipped regex";
 
-fn generate_dfa(tokens: Vec<herring_automata::Token>) -> syn::Result<Dfa> {
+fn generate_dfa(tokens: Vec<herring_automata::Token>, enum_name: &Ident) -> syn::Result<Dfa> {
     let nfa = Nfa::new_tokenizer(tokens);
-    crate::debug::graph(&nfa, "nfa")?;
+    crate::debug::graph(&nfa, &format!("{enum_name}_nfa"))?;
 
     let subset_dfa = match nfa.into_dfa() {
         Ok(dfa) => dfa,
         Err(err) => return Err(Error::new(Span::call_site(), err.message)),
     };
-    crate::debug::graph(&subset_dfa, "dfa")?;
+    crate::debug::graph(&subset_dfa, &format!("{enum_name}_dfa"))?;
 
     let minimal_dfa = subset_dfa.into_minimized();
-    crate::debug::graph(&minimal_dfa, "min")?;
+    crate::debug::graph(&minimal_dfa, &format!("{enum_name}_min"))?;
 
     Ok(minimal_dfa)
 }
@@ -367,7 +367,7 @@ pub(crate) fn generate_impl(tokens: TokenStream) -> syn::Result<TokenStream> {
     let enum_name = token_enum.name;
     let enum_attrs = token_enum.attrs;
     let enum_variants = token_enum.variants;
-    let dfa = generate_dfa(enum_variants.tokens)?;
+    let dfa = generate_dfa(enum_variants.tokens, &enum_name)?;
 
     let states = (0..dfa.states().len())
         .map(|i| {
