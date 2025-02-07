@@ -131,9 +131,17 @@ fn main() {
 ```
 
 ## Debugging
-You can inspect the generated code by running [`cargo expand`](https://github.com/dtolnay/cargo-expand).
+You can quickly inspect the generated code by running [`cargo expand`](https://github.com/dtolnay/cargo-expand).
 
-You can generate [Graphviz](https://graphviz.org/) or [Mermaid](https://mermaid.js.org/) graphs by setting the environment variable `HERRING_DEBUG` to either `graphviz` or `mermaid` during the execution of the procedural macro.
+Setting the environment variable `HERRING_DEBUG` to `expand` will write the expanded code to a file `enum_name_lexer.rs`.
+Unlike `cargo expand` this will not expand all the macros.
+Setting `HERRING_DEBUG` to `skip` will prevent the procedural macro from generating any code.
+By combining both of these modes you can easily include the expanded code so it can be analyzed with a standard debugger like `rust-gdb` or `rust-lldb`.
+
+> [!TIP]
+> Use `rustfmt` on the expanded code to improve readability.
+
+You can generate [Graphviz](https://graphviz.org/) or [Mermaid](https://mermaid.js.org/) graphs by setting `HERRING_DEBUG` to either `graphviz` or `mermaid` during the execution of the procedural macro.
 This generates a file for the NFA (`EnumName_nfa.{dot,mmd}`), the subset construction DFA (`EnumName_dfa.{dot,mmd}`), and the minimized DFA (`EnumName_min.{dot,mmd}`) in the specified format.
 Graphviz is useful when debugging locally with tools like [`xdot`](https://github.com/jrfonseca/xdot.py).
 Mermaid is useful for directly embedding graphs in Github issues.

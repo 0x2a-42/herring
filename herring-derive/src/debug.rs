@@ -1,5 +1,5 @@
 use herring_automata::Automaton;
-use proc_macro2::TokenStream;
+use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 
 pub(crate) fn graph<const D: bool>(automaton: &Automaton<D>, name: &str) -> syn::Result<()> {
@@ -53,4 +53,31 @@ pub(crate) fn log_state(state: usize) -> TokenStream {
         }
     }
     quote! {}
+}
+
+pub(crate) fn expand_or_skip(output: TokenStream, enum_name: &Ident) -> syn::Result<TokenStream> {
+    fn write_file(output: TokenStream, enum_name: &Ident) -> std::io::Result<()> {
+        use std::io::Write;
+        let mut f =
+            std::fs::File::create(format!("{}_lexer.rs", enum_name.to_string().to_lowercase()))?;
+        write!(f, "{output}")
+    }
+    if let Ok(val) = std::env::var("HERRING_DEBUG") {
+        match val.as_str() {
+            "expand" => {
+                if let Err(err) = write_file(output, enum_name) {
+                    return Err(syn::Error::new(
+                        Span::call_site(),
+                        format!("error writing output file: {err}"),
+                    ));
+                }
+                return Ok(quote! {});
+            }
+            "skip" => {
+                return Ok(quote! {});
+            }
+            _ => {}
+        }
+    }
+    Ok(output)
 }

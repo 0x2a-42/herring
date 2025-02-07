@@ -410,7 +410,8 @@ pub(crate) fn generate_impl(tokens: TokenStream) -> syn::Result<TokenStream> {
             enum_attrs.source_ty
         }),
     );
-    Ok(quote! {
+    let lexer_impl = quote! {
+        #[allow(dead_code, unused_imports, unused_labels, clippy::type_complexity)]
         impl<'source> Herring<'source> for #enum_name {
             type Error = #error_ty;
             type Extras = #extras_ty;
@@ -477,5 +478,6 @@ pub(crate) fn generate_impl(tokens: TokenStream) -> syn::Result<TokenStream> {
                 }
             }
         }
-    })
+    };
+    crate::debug::expand_or_skip(lexer_impl, &enum_name)
 }
