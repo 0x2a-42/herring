@@ -1,6 +1,6 @@
 [package]
 name = "herring-automata"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Automata construction for Herring"
 repository = "https://github.com/0x2a-42/herring"
