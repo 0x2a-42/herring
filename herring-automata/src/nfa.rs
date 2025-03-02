@@ -53,9 +53,9 @@ impl Nfa {
         mut value: String,
         subpatterns: &HashMap<String, String>,
     ) -> Result<String, Error> {
-        let mut replaced = true;
-        while replaced {
-            replaced = false;
+        const MAX_DEPTH: usize = 128;
+        for i in 0..MAX_DEPTH {
+            let mut replaced = false;
             for (name, pattern) in subpatterns {
                 let pattern_ref = format!("(?&{name})");
                 let pattern = format!("({pattern})");
@@ -63,6 +63,15 @@ impl Nfa {
                     replaced = true;
                     value = value.replace(&pattern_ref, &pattern);
                 }
+            }
+            if !replaced {
+                break;
+            }
+            if i == MAX_DEPTH - 1 {
+                return Err(format!(
+                    "exceeded maximum subpattern replacement depth of {MAX_DEPTH}"
+                )
+                .into());
             }
         }
         if let Some(start) = value.find("(?&") {
