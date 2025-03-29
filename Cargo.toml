@@ -12,12 +12,12 @@ categories = ["parsing"]
 [dependencies]
 herring-derive = { version = "0.1", path = "./herring-derive" }
 
-[dev-dependencies]
-criterion = "0.5"
+#[dev-dependencies]
+#criterion = "0.5"
 
-[[bench]]
-name = "logos_benchmark"
-harness = false
+#[[bench]]
+#name = "logos_benchmark"
+#harness = false
 
 [workspace]
 members = ["herring-automata", "herring-derive"]
